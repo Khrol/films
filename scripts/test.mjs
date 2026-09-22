@@ -206,7 +206,7 @@ try {
   await page.getByRole('button', { name: 'Save film ↗' }).click();
   await expect(manualLinks.getByRole('link', { name: 'IMDb ↗', exact: true })).toBeVisible();
   const favicon = page.locator('link[rel="icon"][type="image/svg+xml"]');
-  await expect(favicon).toHaveAttribute('href', /assets\/favicon\.svg\?ver=0\.6\.0/);
+  await expect(favicon).toHaveAttribute('href', /assets\/favicon\.svg\?ver=0\.6\.1/);
   assert.equal((await page.request.get(await favicon.getAttribute('href'))).ok(), true);
   console.log('PASS Browser: both ID links persist and edit without an API key; branded favicon loads');
 

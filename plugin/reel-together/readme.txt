@@ -2,7 +2,7 @@
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 0.6.0
+Stable tag: 0.6.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -58,6 +58,10 @@ Deactivating this plugin does not stop Stripe charges. Manage or cancel active
 subscriptions in Stripe before retiring the service.
 
 == Changelog ==
+= 0.6.1 =
+Align membership buttons with consistent widths and spacing under the hosted
+theme, and improve companion-sharing checkbox alignment and text wrapping.
+
 = 0.6.0 =
 Direct Stripe EUR 1/month personal membership, administrator-selected free access,
 secure checkout and customer portal, signed payment webhooks, separate test/live

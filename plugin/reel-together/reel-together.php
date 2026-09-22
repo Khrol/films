@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Reel Together
  * Description: A private movie diary and shared household watchlist.
- * Version: 0.6.0
+ * Version: 0.6.1
  * Requires at least: 6.5
  * Requires PHP: 8.1
  * Author: Reel Together
@@ -11,7 +11,7 @@
  */
 
 defined( 'ABSPATH' ) || exit;
-define( 'RT_VERSION', '0.6.0' );
+define( 'RT_VERSION', '0.6.1' );
 define( 'RT_PATH', plugin_dir_path( __FILE__ ) );
 define( 'RT_URL', plugin_dir_url( __FILE__ ) );
 
