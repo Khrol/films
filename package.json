@@ -1,0 +1,20 @@
+{
+  "name": "reel-together",
+  "version": "0.4.0",
+  "private": true,
+  "type": "module",
+  "description": "A WordPress movie diary for yourself and your household.",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "test": "node scripts/test.mjs",
+    "package": "node scripts/package.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@wp-playground/cli": "3.1.54",
+    "fflate": "0.8.3"
+  }
+}

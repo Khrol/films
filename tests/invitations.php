@@ -1,0 +1,41 @@
+<?php
+// Executed inside the disposable test database; no mail may be sent.
+$reviewer = new_user( 'reviewer' );
+( new WP_User( $reviewer ) )->set_role( 'administrator' );
+$users_before = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->users}" );
+$mail_attempts = 0;
+$no_mail = function () use ( &$mail_attempts ) { ++$mail_attempts; return true; };
+add_filter( 'pre_wp_mail', $no_mail );
+wp_set_current_user( 0 );
+$request_data = array( '_wpnonce' => wp_create_nonce( 'rt_request_invitation' ), 'request_name' => 'Interested visitor', 'request_email' => 'Visitor@Example.test', 'website' => '' );
+check( RT_Invitations::submit( $request_data, '192.0.2.1' ) === true, 'Visitors can request an invitation without an account' );
+$table = RT_Store::table( 'invitation_requests' );
+$row = $wpdb->get_row( "SELECT * FROM $table", ARRAY_A );
+$request_id = (int) $row['id'];
+check( $row['email'] === 'visitor@example.test' && $row['status'] === 'pending', 'Invitation requests store a normalized email for administrator review' );
+$request_data['request_name'] = 'Replacement name';
+check( RT_Invitations::submit( $request_data, '192.0.2.1' ) === true && (int) $wpdb->get_var( "SELECT COUNT(*) FROM $table" ) === 1, 'Duplicate invitation requests receive the same confirmation without duplicate records' );
+check( $wpdb->get_var( "SELECT name FROM $table" ) === 'Interested visitor', 'Duplicate requests cannot replace existing request details' );
+$bad = $request_data; $bad['_wpnonce'] = 'invalid';
+check( RT_Invitations::submit( $bad, '192.0.2.2' )->get_error_code() === 'expired', 'Invitation submissions require the form nonce' );
+$bad = $request_data; $bad['request_email'] = "a@example.test\r\nBcc: other@example.test";
+check( RT_Invitations::submit( $bad, '192.0.2.2' )->get_error_code() === 'invalid', 'Invitation submissions reject invalid email and header injection' );
+$bad = $request_data; $bad['request_name'] = array( 'bad' );
+check( RT_Invitations::submit( $bad, '192.0.2.2' )->get_error_code() === 'invalid', 'Invitation submissions reject malformed names without PHP errors' );
+$bot = $request_data; $bot['request_email'] = 'bot@example.test'; $bot['website'] = 'spam';
+check( RT_Invitations::submit( $bot, '192.0.2.3' ) === true && (int) $wpdb->get_var( "SELECT COUNT(*) FROM $table" ) === 1, 'Honeypot submissions do not enter the review queue' );
+for ( $i = 0; $i < 5; $i++ ) { RT_Invitations::submit( $request_data, '192.0.2.4' ); }
+check( RT_Invitations::submit( $request_data, '192.0.2.4' )->get_error_code() === 'limited', 'Public invitation requests are rate limited' );
+ob_start(); RT_Invitations::render_admin(); $anonymous_queue = ob_get_clean();
+check( '' === $anonymous_queue, 'Visitors cannot read invitation requests' );
+wp_set_current_user( $alice );
+check( RT_Invitations::review( $request_id, 'handled', wp_create_nonce( 'rt_review_invitation_' . $request_id ) )->get_error_data()['status'] === 403, 'Subscribers cannot manage requests even with a valid nonce' );
+wp_set_current_user( $reviewer );
+$review_nonce = wp_create_nonce( 'rt_review_invitation_' . $request_id );
+check( RT_Invitations::review( $request_id, 'handled', 'wrong' )->get_error_data()['status'] === 403, 'Administrator review actions reject CSRF attempts' );
+check( RT_Invitations::review( $request_id, 'handled', $review_nonce ) === true, 'An administrator can mark a request handled' );
+check( $wpdb->get_var( "SELECT status FROM $table" ) === 'handled' && RT_Invitations::pending_count() === 0, 'Handled requests leave the pending queue' );
+check( RT_Invitations::review( $request_id, 'declined', $review_nonce )->get_error_data()['status'] === 409, 'Stale review actions do not overwrite a previous decision' );
+check( RT_Invitations::review( $request_id, 'delete', $review_nonce ) === true && (int) $wpdb->get_var( "SELECT COUNT(*) FROM $table" ) === 0, 'An administrator can remove request contact information' );
+check( (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->users}" ) === $users_before && $mail_attempts === 0, 'Request submission and handling never create accounts or send emails' );
+remove_filter( 'pre_wp_mail', $no_mail );
