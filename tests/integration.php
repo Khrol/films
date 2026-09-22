@@ -207,7 +207,10 @@ try {
     // Keep browser tests independent of the API fixtures above.
     require '/wordpress/reel-invitation-checks.php';
     require '/wordpress/reel-companion-checks.php';
+    require '/wordpress/reel-sharing-checks.php';
     $browser = new_user( 'browser' );
+    new_user( 'linked_browser' );
+    new_user( 'sharing_browser' );
     update_option( 'rt_kinopoisk_token', 'test-kinopoisk-key' );
     update_option( 'show_on_front', 'page' ); update_option( 'page_on_front', get_option( 'rt_page_id' ) );
     echo wp_json_encode( array( 'passed' => $passed, 'wordpress' => get_bloginfo( 'version' ), 'php' => PHP_VERSION, 'browser_user' => $browser ) );

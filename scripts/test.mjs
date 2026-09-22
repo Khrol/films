@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { chromium, expect } from '@playwright/test';
 import { startWordPress, projectRoot } from './wordpress.mjs';
 import { checkSearchLayout } from './check-search-layout.mjs';
+import { checkSharing } from '../tests/sharing-browser.mjs';
 
 const instance = await startWordPress({ port: 9401 });
 let browser;
@@ -13,6 +14,7 @@ try {
   await instance.playground.writeFile('/wordpress/wp-content/mu-plugins/reel-test-kinopoisk.php', await readFile(path.join(projectRoot, 'tests/mock-kinopoisk.php'), 'utf8'));
   await instance.playground.writeFile('/wordpress/reel-invitation-checks.php', await readFile(path.join(projectRoot, 'tests/invitations.php'), 'utf8'));
   await instance.playground.writeFile('/wordpress/reel-companion-checks.php', await readFile(path.join(projectRoot, 'tests/companions.php'), 'utf8'));
+  await instance.playground.writeFile('/wordpress/reel-sharing-checks.php', await readFile(path.join(projectRoot, 'tests/sharing.php'), 'utf8'));
   const result = await instance.playground.run({ code: await readFile(path.join(projectRoot, 'tests/integration.php'), 'utf8') });
   if (result.errors) console.error(result.errors);
   const report = JSON.parse(result.text);
@@ -104,7 +106,7 @@ try {
   await page.getByRole('button', { name: /Watching companions/ }).click();
   const wifeForm = page.locator('.companion-edit').filter({ has: page.locator('input[value="My wife"]') });
   await wifeForm.getByLabel('Companion name').fill('My wife (renamed)');
-  await wifeForm.getByRole('button', { name: 'Rename', exact: true }).click();
+  await wifeForm.getByRole('button', { name: 'Save companion', exact: true }).click();
   await expect(page.locator('.companion-edit input[value="My wife (renamed)"]')).toBeVisible();
   await page.getByRole('button', { name: /Film diary/ }).click();
   await page.locator('#companion-filter').selectOption(wifeFilter);
@@ -201,7 +203,7 @@ try {
   await page.getByRole('button', { name: 'Save film ↗' }).click();
   await expect(manualLinks.getByRole('link', { name: 'IMDb ↗', exact: true })).toBeVisible();
   const favicon = page.locator('link[rel="icon"][type="image/svg+xml"]');
-  await expect(favicon).toHaveAttribute('href', /assets\/favicon\.svg\?ver=0\.4\.0/);
+  await expect(favicon).toHaveAttribute('href', /assets\/favicon\.svg\?ver=0\.5\.0/);
   assert.equal((await page.request.get(await favicon.getAttribute('href'))).ok(), true);
   console.log('PASS Browser: both ID links persist and edit without an API key; branded favicon loads');
 
@@ -246,6 +248,7 @@ try {
   console.log('PASS Browser: public invitation request, mobile form, administrator queue, manual handling and deletion without account creation');
   assert.deepEqual(errors, [], 'No browser JavaScript errors');
   console.log('PASS Browser: logged-out sessions cannot see diary content; no JavaScript errors');
+  await checkSharing(browser, url, out);
 
   const storage = await mkdtemp(path.join(tmpdir(), 'reel-persistence-'));
   let persistent;

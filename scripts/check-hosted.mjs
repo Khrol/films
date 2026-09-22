@@ -26,7 +26,7 @@ try {
   const api = await page.request.get(`${site}/wp-json/reel-together/v1/bootstrap`);
   console.log('Anonymous API HTTP status:', api.status());
   if (![401, 403].includes(api.status())) throw new Error('Anonymous API access did not reject the request.');
-  const css = await page.request.get(`${site}/wp-content/plugins/reel-together/assets/app.css?ver=0.4.0`);
+  const css = await page.request.get(`${site}/wp-content/plugins/reel-together/assets/app.css?ver=0.5.0`);
   if (!css.ok()) throw new Error('The deployed stylesheet did not load.');
   console.log('PASS Hosted page, login controls, stylesheet, and anonymous API protection.');
   // Render the same collection control in this browser only to exercise the host's
@@ -53,7 +53,7 @@ try {
     await checkSearchLayout(page);
     await page.screenshot({ path: 'test-results/hosted-search-mobile.png' });
     const favicon = page.locator('link[rel="icon"][type="image/svg+xml"]');
-    await expect(favicon).toHaveAttribute('href', /assets\/favicon\.svg\?ver=0\.4\.0/);
+    await expect(favicon).toHaveAttribute('href', /assets\/favicon\.svg\?ver=0\.5\.0/);
     if (!(await page.request.get(await favicon.getAttribute('href'))).ok()) throw new Error('The deployed favicon did not load.');
     console.log('PASS Hosted styles: search button fits its field on desktop and mobile; favicon loads.');
   }

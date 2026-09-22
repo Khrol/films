@@ -2,7 +2,7 @@
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 0.4.0
+Stable tag: 0.5.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -43,6 +43,12 @@ Deactivation and plugin deletion preserve custom database tables. Back up the
 entire database to retain households and diary records.
 
 == Changelog ==
+= 0.5.0 =
+Optional companion links to household accounts, My viewings participant filter,
+explicit sharing of earlier or individual personal viewings, and access revocation
+when links change or members leave. Shared notes and ratings remain attributed
+to their original author.
+
 = 0.4.0 =
 Kinopoisk movie search, Russian titles, posters, rating snapshots, film links,
 provider selection, verified catalog metadata, and Unicode-aware field limits.

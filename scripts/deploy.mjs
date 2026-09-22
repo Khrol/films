@@ -98,7 +98,7 @@ if (process.argv.includes('--deploy') || process.argv.includes('--verify') || pr
     if (!class_exists('RT_App')) { WP_CLI::error('Reel Together is not active.'); }
     global $wpdb;
     $tables = array();
-    foreach (array('households','members','movies','entries','invitation_requests','companions') as $name) {
+    foreach (array('households','members','movies','entries','invitation_requests','companions','entry_shares') as $name) {
       $table = RT_Store::table($name);
       $found = $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like($table)));
       if ($found !== $table) { WP_CLI::error('A required plugin table is missing.'); }
@@ -112,10 +112,24 @@ if (process.argv.includes('--deploy') || process.argv.includes('--verify') || pr
     foreach (array('watch_company', 'companion_ids') as $column) {
       if (!in_array($column, $entry_columns, true)) { WP_CLI::error('A required viewing companion column is missing.'); }
     }
+    $companion_columns = $wpdb->get_col('SHOW COLUMNS FROM ' . RT_Store::table('companions'));
+    foreach (array('linked_user_id', 'linked_household_id') as $column) {
+      if (!in_array($column, $companion_columns, true)) { WP_CLI::error('A required linked account column is missing.'); }
+    }
+    // Exercise the visibility queries on the hosted database without printing diary data.
+    $probe_users = get_users(array('number'=>1, 'fields'=>'ID'));
+    if (!$probe_users) { WP_CLI::error('No site account is available for the read check.'); }
+    wp_set_current_user((int)$probe_users[0]);
+    foreach (array('all', 'mine', 'personal', 'household') as $scope) {
+      $wpdb->get_var('SELECT COUNT(*) FROM ' . RT_Store::table('entries') . ' e WHERE ' . RT_Store::visibility($scope));
+      if ($wpdb->last_error) { WP_CLI::error('A diary visibility query failed.'); }
+    }
+    RT_Companions::visible();
+    if ($wpdb->last_error) { WP_CLI::error('The companion visibility query failed.'); }
     wp_set_current_user(0);
     $anonymous = rest_do_request(new WP_REST_Request('GET', '/reel-together/v1/bootstrap'));
     if ($anonymous->get_status() !== 401) { WP_CLI::error('Anonymous access was not rejected.'); }
-    echo wp_json_encode(array('version'=>RT_VERSION, 'page'=>RT_App::url(), 'schema'=>get_option('rt_schema_version'), 'tables'=>$tables, 'anonymous_status'=>$anonymous->get_status(), 'kinopoisk_configured'=>(bool)RT_App::token('kinopoisk')));
+    echo wp_json_encode(array('version'=>RT_VERSION, 'page'=>RT_App::url(), 'schema'=>get_option('rt_schema_version'), 'tables'=>$tables, 'visibility_queries'=>'passed', 'anonymous_status'=>$anonymous->get_status(), 'kinopoisk_configured'=>(bool)RT_App::token('kinopoisk')));
   `);
   console.log('Verified:', result.trim());
 }

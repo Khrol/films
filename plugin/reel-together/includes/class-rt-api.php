@@ -83,6 +83,7 @@ final class RT_API {
                 'is_owner' => (int) $household['owner_id'] === $user->ID, 'members' => $members,
             ) : null,
             'counts' => array( 'watched' => (int) ( $counts['watched']->total ?? 0 ), 'watchlist' => (int) ( $counts['watchlist']->total ?? 0 ) ),
+            'my_watched_count' => (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . RT_Store::table( 'entries' ) . " e WHERE e.status='watched' AND " . RT_Store::visibility( 'mine' ) ),
             'catalog_enabled' => count( RT_Catalog::providers() ) > 0,
             'catalog_providers' => RT_Catalog::providers(),
             'today' => current_time( 'Y-m-d' ),
@@ -101,7 +102,7 @@ final class RT_API {
             ( false === filter_var( $companion, FILTER_VALIDATE_INT ) || $companion < 1 ) ) {
             return self::error( 'Choose a valid viewing companion filter.' );
         }
-        if ( ! in_array( $status, array( 'watched', 'watchlist' ), true ) || ! in_array( $scope, array( 'all', 'personal', 'household' ), true ) || null === $query || ! $page || $page < 1 || $page > 100000 ) {
+        if ( ! in_array( $status, array( 'watched', 'watchlist' ), true ) || ! in_array( $scope, array( 'all', 'mine', 'personal', 'household' ), true ) || null === $query || ! $page || $page < 1 || $page > 100000 ) {
             return self::error( 'Invalid diary filter.' );
         }
         $where = RT_Store::visibility( $scope ) . $wpdb->prepare( ' AND e.status=%s', $status );
@@ -133,7 +134,7 @@ final class RT_API {
         }
         $status = $body['status'] ?? '';
         $scope = $body['scope'] ?? '';
-        if ( ! in_array( $status, array( 'watched', 'watchlist' ), true ) || ! in_array( $scope, array( 'personal', 'household' ), true ) ) {
+        if ( ! in_array( $status, array( 'watched', 'watchlist' ), true ) || ! in_array( $scope, array( 'personal', 'household', 'linked' ), true ) || ( 'linked' === $scope && 'watched' !== $status ) ) {
             return self::error( 'Choose a list and who can see this entry.' );
         }
         $household = RT_Store::household();
@@ -166,6 +167,8 @@ final class RT_API {
         }
         $company = RT_Companions::selection( $body, $existing, $status );
         if ( is_wp_error( $company ) ) { return $company; }
+        $recipients = 'linked' === $scope ? RT_Sharing::validate_recipients( $body['shared_companion_ids'] ?? ( $id ? RT_Sharing::shared_ids( $id ) : array() ), $company ) : array();
+        if ( is_wp_error( $recipients ) ) { return $recipients; }
         $data = array(
             'user_id' => get_current_user_id(), 'household_id' => 'household' === $scope ? (int) $household['id'] : 0,
             'movie_id' => $movie, 'status' => $status, 'watched_on' => $date,
@@ -183,13 +186,17 @@ final class RT_API {
             }
         }
         if ( $id ) {
+            // Revoke first: a failed write must never turn a private edit into an unintended share.
+            if ( ! RT_Sharing::replace( $id, array() ) ) { return self::error( 'Could not update sharing. Please try again.', 500 ); }
             $result = $wpdb->update( RT_Store::table( 'entries' ), $data, array( 'id' => $id, 'user_id' => get_current_user_id() ) );
         } else {
             $data['created_at'] = current_time( 'mysql', true );
             $result = $wpdb->insert( RT_Store::table( 'entries' ), $data );
             $id = (int) $wpdb->insert_id;
         }
-        return false === $result ? self::error( 'Could not save your entry. Please try again.', 500 ) : new WP_REST_Response( array( 'id' => $id ), $existing ? 200 : 201 );
+        if ( false === $result ) { return self::error( 'Could not save your entry. Please try again.', 500 ); }
+        if ( ! RT_Sharing::replace( $id, $recipients ) ) { return self::error( 'The entry was saved, but sharing could not be updated. Please try again.', 500 ); }
+        return new WP_REST_Response( array( 'id' => $id ), $existing ? 200 : 201 );
     }
 
     public static function delete_entry( $request ) {
@@ -199,6 +206,7 @@ final class RT_API {
             return self::error( 'This entry is unavailable or belongs to another member.', 403 );
         }
         $ok = $wpdb->delete( RT_Store::table( 'entries' ), array( 'id' => $entry['id'], 'user_id' => get_current_user_id() ) );
+        if ( false !== $ok ) { $wpdb->delete( RT_Store::table( 'entry_shares' ), array( 'entry_id' => $entry['id'] ) ); }
         return false === $ok ? self::error( 'Could not delete your entry.', 500 ) : array( 'deleted' => true );
     }
 
@@ -262,6 +270,7 @@ final class RT_API {
             return self::error( 'The household owner cannot leave the household.', 403 );
         }
         $ok = $wpdb->delete( RT_Store::table( 'members' ), array( 'user_id' => get_current_user_id() ) );
+        if ( false !== $ok ) { RT_Sharing::unlink_member( get_current_user_id(), $household['id'] ); }
         return false === $ok ? self::error( 'Could not leave the household.', 500 ) : self::bootstrap();
     }
 
@@ -273,6 +282,7 @@ final class RT_API {
             return self::error( 'Only the owner can remove other members.', 403 );
         }
         $ok = $wpdb->delete( RT_Store::table( 'members' ), array( 'household_id' => $household['id'], 'user_id' => $id ) );
+        if ( false !== $ok ) { RT_Sharing::unlink_member( $id, $household['id'] ); }
         // Rotate away any previous invitation when revoking a member's access.
         $wpdb->update( RT_Store::table( 'households' ), array( 'invite_hash' => '', 'invite_expires' => null ), array( 'id' => $household['id'] ) );
         return false === $ok ? self::error( 'Could not remove this member.', 500 ) : self::bootstrap();

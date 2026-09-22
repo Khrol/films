@@ -96,6 +96,10 @@ Use the diary’s **Watched with** filter to see films watched with one person, 
 
 Companion profiles belong to the person who records the viewing. Household members can see and filter companion labels only on shared entries they can access. Selecting a companion does not share a private entry. Older free-text “who watched” notes remain available when editing; they are not automatically interpreted or classified as watched alone.
 
+To associate a label with a real person, have them join **Our household**, then open **Watching companions**, choose their **Family account**, and save. Linked participants see tagged household viewings under **My viewings**, the diary’s default filter. **All films** still shows every entry they can access. The original author retains ownership of the entry, notes, and rating; linking does not create a duplicate or allow others to edit it.
+
+Personal entries need explicit sharing. Check **Share all earlier viewings…** when saving a companion to share their tagged history, including personal notes and ratings, with the selected account. This grants access only to that person, not the entire household, and does not automatically share future personal entries. For individual viewings, use **Who can see this? → Linked companions — selected accounts** and select the recipients. Changing to **Just for me** revokes that entry’s grants. Removing or changing an account link, leaving the household, or removing a member revokes the affected personal grants. Relinking or rejoining does not restore them without a new explicit sharing choice.
+
 ### Invitation requests
 
 When public registration is disabled, the login page offers **Request an invitation**. Visitors submit a name and email address. Requests are visible to administrators at **Users → Invitation requests**, with links from the diary sidebar and **Settings → Reel Together**.
@@ -145,7 +149,7 @@ The token stays on the server. Alternatively, define `REEL_TOGETHER_TMDB_TOKEN` 
 
 ## Data and access rules
 
-- Personal entries belong to one user and are never exposed to household members.
+- Personal entries belong to one user and remain private unless their author explicitly shares them with selected linked companions.
 - Shared entries belong to one household. Members can read them, and only their author can edit or delete them.
 - The rating belongs to the person logging the entry. Per-member ratings on a single shared viewing are a later feature.
 - One household per account. Owners generate seven-day invitation codes and can remove members; removing a member also revokes outstanding invitations.
@@ -154,7 +158,7 @@ The token stays on the server. Alternatively, define `REEL_TOGETHER_TMDB_TOKEN` 
 - Movie records and viewing entries are separate, so rewatches reuse metadata and retain independent viewing details.
 - REST requests require authentication and a WordPress nonce. Every query enforces visibility; client-supplied owner/household IDs do not grant access. App HTML and API responses send no-cache headers.
 
-Tables use the site's WordPress prefix: `rt_households`, `rt_members`, `rt_movies`, `rt_entries`, `rt_companions`, and `rt_invitation_requests`. Deactivating or deleting the plugin retains data. Invitation requests include visitors’ names and emails; only administrators can review or remove them. Back up the full database: WordPress's built-in content export does not include these tables. Self-service data export, account erasure workflows, household ownership transfer, imports, and recommendations are not included in this first version.
+Tables use the site's WordPress prefix: `rt_households`, `rt_members`, `rt_movies`, `rt_entries`, `rt_companions`, `rt_entry_shares`, and `rt_invitation_requests`. Deactivating or deleting the plugin retains data. Invitation requests include visitors’ names and emails; only administrators can review or remove them. Back up the full database: WordPress's built-in content export does not include these tables. Self-service data export, account erasure workflows, household ownership transfer, imports, and recommendations are not included in this first version.
 
 ## Project layout
 

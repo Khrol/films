@@ -12,9 +12,20 @@ final class RT_Companions {
     }
 
     private static function format( $row ) {
+        $linked = self::active_link( $row );
         return array( 'id' => (int) $row['id'], 'name' => $row['name'], 'user_id' => (int) $row['user_id'],
+            'linked_user_id' => $linked, 'linked_user_name' => $linked ? get_the_author_meta( 'display_name', $linked ) : '',
             'can_edit' => (int) $row['user_id'] === get_current_user_id(),
             'owner_name' => get_the_author_meta( 'display_name', $row['user_id'] ) );
+    }
+
+    public static function active_link( $row ) {
+        $uid = (int) ( $row['linked_user_id'] ?? 0 );
+        if ( ! $uid || $uid === (int) $row['user_id'] || ! get_userdata( $uid ) ) { return 0; }
+        $owner = RT_Store::household( $row['user_id'] );
+        $recipient = RT_Store::household( $uid );
+        return $owner && $recipient && (int) $owner['id'] === (int) $recipient['id'] &&
+            (int) $owner['id'] === (int) $row['linked_household_id'] ? $uid : 0;
     }
 
     public static function for_entry( $encoded ) {
@@ -64,7 +75,8 @@ final class RT_Companions {
         $id = (int) $request->get_param( 'id' );
         $uid = get_current_user_id();
         $table = RT_Store::table( 'companions' );
-        if ( $id && ! $wpdb->get_var( $wpdb->prepare( "SELECT id FROM $table WHERE id=%d AND user_id=%d", $id, $uid ) ) ) {
+        $existing = $id ? $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $table WHERE id=%d AND user_id=%d", $id, $uid ), ARRAY_A ) : null;
+        if ( $id && ! $existing ) {
             return new WP_Error( 'rt_companion', 'This companion is unavailable or belongs to another person.', array( 'status' => 403 ) );
         }
         $name = $request->get_param( 'name' );
@@ -81,7 +93,34 @@ final class RT_Companions {
         if ( ! $id && ! $duplicate && (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $table WHERE user_id=%d", $uid ) ) >= 100 ) {
             return new WP_Error( 'rt_companion', 'You can keep up to 100 viewing companions.', array( 'status' => 400 ) );
         }
-        $data = array( 'user_id' => $uid, 'name' => $name, 'name_key' => $key );
+        if ( ! $id && $duplicate ) {
+            $existing = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $table WHERE id=%d", $duplicate ), ARRAY_A );
+        }
+        $linked = $request->get_param( 'linked_user_id' ) ?? ( $existing['linked_user_id'] ?? 0 );
+        if ( false === filter_var( $linked, FILTER_VALIDATE_INT ) || $linked < 0 ) {
+            return new WP_Error( 'rt_companion', 'Choose a valid household member.', array( 'status' => 400 ) );
+        }
+        $linked = (int) $linked;
+        $household = $linked ? RT_Store::household() : null;
+        $target = $linked ? RT_Store::household( $linked ) : null;
+        if ( $linked && ( $linked === $uid || ! get_userdata( $linked ) || ! $household || ! $target || (int) $household['id'] !== (int) $target['id'] ) ) {
+            return new WP_Error( 'rt_companion', 'Choose another current member of your household.', array( 'status' => 400 ) );
+        }
+        $share = $request->get_param( 'share_existing' ) ?? false;
+        if ( ! is_bool( $share ) || ( $share && ! $linked ) ) {
+            return new WP_Error( 'rt_companion', 'Choose a linked account before sharing earlier viewings.', array( 'status' => 400 ) );
+        }
+        if ( ! $id && $duplicate && ( $linked !== (int) $existing['linked_user_id'] || $share ) ) {
+            return new WP_Error( 'rt_companion', 'Edit your existing companion to change their account or share earlier viewings.', array( 'status' => 409 ) );
+        }
+        $linked_household = $household ? (int) $household['id'] : 0;
+        if ( $id && ( $linked !== (int) $existing['linked_user_id'] || $linked_household !== (int) $existing['linked_household_id'] ) ) {
+            if ( false === $wpdb->delete( RT_Store::table( 'entry_shares' ), array( 'companion_id' => $id ) ) ) {
+                return new WP_Error( 'rt_companion', 'Could not revoke the previous sharing. Please try again.', array( 'status' => 500 ) );
+            }
+        }
+        $data = array( 'user_id' => $uid, 'name' => $name, 'name_key' => $key,
+            'linked_user_id' => $linked, 'linked_household_id' => $linked_household );
         if ( $id ) {
             $ok = $wpdb->update( $table, $data, array( 'id' => $id, 'user_id' => $uid ) );
         } elseif ( $duplicate ) {
@@ -91,6 +130,9 @@ final class RT_Companions {
             $id = (int) $wpdb->insert_id;
         }
         if ( false === $ok ) { return new WP_Error( 'rt_companion', 'Could not save this companion.', array( 'status' => 500 ) ); }
-        return self::format( $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $table WHERE id=%d", $id ), ARRAY_A ) );
+        $row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $table WHERE id=%d", $id ), ARRAY_A );
+        $shared = $share ? RT_Sharing::share_existing( $row ) : 0;
+        if ( is_wp_error( $shared ) ) { return $shared; }
+        return array_merge( self::format( $row ), array( 'shared_count' => $shared ) );
     }
 }

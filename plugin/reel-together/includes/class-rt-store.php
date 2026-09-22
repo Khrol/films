@@ -14,10 +14,18 @@ final class RT_Store {
         $tables = array(
             'companions' => "id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
                 user_id bigint(20) unsigned NOT NULL,
+                linked_user_id bigint(20) unsigned NOT NULL DEFAULT 0,
+                linked_household_id bigint(20) unsigned NOT NULL DEFAULT 0,
                 name varchar(80) NOT NULL,
                 name_key varchar(64) NOT NULL,
                 PRIMARY KEY  (id),
                 UNIQUE KEY user_name (user_id,name_key)",
+            'entry_shares' => "entry_id bigint(20) unsigned NOT NULL,
+                companion_id bigint(20) unsigned NOT NULL,
+                user_id bigint(20) unsigned NOT NULL,
+                household_id bigint(20) unsigned NOT NULL,
+                PRIMARY KEY  (entry_id,companion_id),
+                KEY recipient (user_id,household_id)",
             'invitation_requests' => "id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
                 email_key varchar(64) NOT NULL,
                 name varchar(100) NOT NULL,
@@ -89,14 +97,21 @@ final class RT_Store {
         ), ARRAY_A );
     }
 
-    // Every read is scoped here; personal rows never become visible through household membership.
+    // Every read is scoped here. A personal entry needs an explicit grant to a linked account.
     public static function visibility( $scope = 'all' ) {
         global $wpdb;
         $uid = get_current_user_id();
         $household = self::household();
         $personal = $wpdb->prepare( '(e.user_id=%d AND e.household_id=0)', $uid );
         $shared = $household ? $wpdb->prepare( 'e.household_id=%d', $household['id'] ) : '1=0';
-        return 'personal' === $scope ? $personal : ( 'household' === $scope ? $shared : "($personal OR $shared)" );
+        $direct = RT_Sharing::grant_condition( $uid );
+        $accessible = "($personal OR $shared OR $direct)";
+        if ( 'mine' === $scope ) {
+            return $accessible . $wpdb->prepare( ' AND (e.user_id=%d OR ', $uid ) . RT_Sharing::participant_condition( $uid ) . ')';
+        }
+        if ( 'personal' === $scope ) { return "$personal AND NOT (" . RT_Sharing::grant_condition() . ')'; }
+        if ( 'household' === $scope ) { return $shared; }
+        return $accessible;
     }
 
     public static function entry( $id ) {
@@ -117,6 +132,11 @@ final class RT_Store {
         $row['scope'] = $row['household_id'] ? 'household' : 'personal';
         $row['author_name'] = get_the_author_meta( 'display_name', $row['user_id'] );
         $row['companions'] = RT_Companions::for_entry( $row['companion_ids'] );
+        $row['shared_companion_ids'] = RT_Sharing::shared_ids( $row['id'] );
+        if ( ! $row['household_id'] && $row['shared_companion_ids'] ) { $row['scope'] = 'linked'; }
+        $row['is_my_viewing'] = 'watched' === $row['status'] && ( $row['can_edit'] || count( array_filter( $row['companions'], function ( $companion ) {
+            return $companion['linked_user_id'] === get_current_user_id();
+        } ) ) > 0 );
         unset( $row['companion_ids'] );
         return $row;
     }
