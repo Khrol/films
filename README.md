@@ -1,6 +1,14 @@
 # Reel Together
 
-A WordPress plugin for movies watched alone and with your household. Includes a private film diary, personal and shared watchlists, viewing dates, repeat viewings, ratings, notes, household invitations, and optional Kinopoisk and TMDB catalogs. The interface is English; movie search prioritizes Russian titles.
+A WordPress plugin for keeping a private movie diary and sharing selected viewings with family. Each viewing records its date, personal rating, notes, and who watched with you; rewatches keep their own details. The interface is English, and catalog search prioritizes Russian titles.
+
+- Personal diaries and watchlists, household viewings, and reusable companion labels such as **My wife** and **My elder son**.
+- Optional companion links to real family accounts, with explicit consent before personal viewing history is shared.
+- Kinopoisk and IMDb film IDs, direct links, and community ratings through the configured catalog; optional TMDB search.
+- Invitation requests collected for the owner to handle manually.
+- Optional **€1 per person per month** Stripe subscriptions, with free access assigned individually by the owner.
+
+Live site: [films.khroliz.com](https://films.khroliz.com/). Source: [Khrol/films](https://github.com/Khrol/films). Release history: [plugin changelog](plugin/reel-together/readme.txt).
 
 ## 1. Run locally
 
@@ -39,9 +47,13 @@ npm run package
 
 Tests boot an isolated WordPress instance and never use your preview's database. They exercise real WordPress REST handlers and a headless browser, including account and household isolation, nonce authentication, validation, invitations and revocation, repeat viewings, pagination, and the core diary flow on desktop and mobile. Tests also cover reusable companion profiles, group filtering, private versus shared companion visibility, and invitation requests with manual handling and no email or account creation. Catalog tests mock Kinopoisk and TMDB; a live token is not required. They cover exact IMDb/Kinopoisk ID lookups, provider cross-references, manual links without API keys, and forged metadata rejection. Browser screenshots are saved under `test-results/`.
 
+Billing tests mock Stripe responses and payment pages. They cover setup, separate sandbox/live accounts, verified checkout returns, signed webhooks, duplicate-checkout prevention, cancellation, failed renewals, manual complimentary access, and retained diary data. These checks do not replace a real Stripe sandbox checkout and webhook delivery before subscriptions are opened.
+
 On macOS, tests use installed Google Chrome. On other platforms, install Playwright Chromium first with `npx playwright install chromium`. Override the browser using `REEL_BROWSER_CHANNEL=chrome npm test` if needed.
 
 Tested on WordPress 7.1.1 and PHP 8.3.33 using Playground's SQLite integration. The database schema uses WordPress's `dbDelta` and `$wpdb` for MySQL/MariaDB hosting. Deployment checks verify the live WordPress.com app page, database schema, anonymous API rejection, stylesheet, favicon, and collection search layout against the hosted theme. Authenticated hosted SSO and catalog calls with a real API key still require a live account flow; the complete diary flow is tested locally.
+
+For CSS changes, inspect the affected controls with the hosted theme loaded as well as the local preview. The theme can override generic button, input, and label rules. Version 0.6.1 was visually checked at 320, 390, 768, and 1440 pixels: membership actions use equal widths and spacing, and companion-sharing consent wraps beside a fixed-size checkbox. Update the plugin version when publishing asset changes so browsers request the new stylesheet.
 
 The output is **`dist/reel-together.zip`**. It contains only the plugin, including its PHP, JavaScript, CSS, and credits asset. No JavaScript build step or Node.js runtime is needed on WordPress.com.
 
@@ -74,6 +86,8 @@ node scripts/deploy.mjs                 # Read-only connection check
 npm run package
 node scripts/deploy.mjs --deploy        # Install/replace this plugin and activate it
 node scripts/deploy.mjs --verify        # Read-only verification
+node scripts/deploy.mjs --inspect-billing # Inspect installed billing plugins and settings
+node scripts/check-hosted.mjs           # Check the public page, assets, and access protection
 node scripts/deploy.mjs --make-homepage # Make the diary open at /
 node scripts/deploy.mjs --configure-kinopoisk  # Read key from the ignored local file
 ```
@@ -104,7 +118,7 @@ Personal entries need explicit sharing. Check **Share all earlier viewings…** 
 
 Billing uses **Stripe Checkout and Stripe Billing directly**; WooCommerce Subscriptions is not required. Each subscription covers one signed-in WordPress account. Billing is disabled by default and existing diary data is retained when access ends.
 
-1. Create a Stripe account and complete its business and payout setup. Never put API keys in chat, Git, or screenshots.
+1. [Register with Stripe](https://dashboard.stripe.com/register) and verify your email. Complete activation using your actual business country and type, requested identity details, website, and payout bank account; enable two-factor authentication. For this installation, use `https://films.khroliz.com` and describe the product as a personal movie diary and family watchlist costing €1 per month per account. You can start sandbox testing while activation is pending. See [Stripe’s account setup guide](https://docs.stripe.com/get-started/account/set-up). Never put API keys in chat, Git, or screenshots.
 2. Open **Settings → Reel Together → Membership**. Choose **Test**, enter a Stripe sandbox test secret key, and select **Connect and prepare Stripe**. The plugin creates an exact €1/month recurring price, customer portal, and signed webhook endpoint. Connecting does not charge anyone.
 3. Select **Run test checkout**. Complete a Stripe test payment using its test card `4242 4242 4242 4242`, a future expiry, and any three-digit CVC. Both verified payment and webhook delivery must succeed before live access requirements can be enabled. Test purchases never grant live entitlements.
 4. Connect your **Live** secret key. Separate Stripe sandboxes are supported; their account ID need not match your live account. Stripe must report that live charges are enabled. Tax calculation through Stripe Tax is optional and requires the merchant’s tax settings and registrations in Stripe; the recurring price uses inclusive tax behavior so the listed plan remains €1.
@@ -179,10 +193,21 @@ Tables use the site's WordPress prefix: `rt_households`, `rt_members`, `rt_movie
 
 ## Project layout
 
+Clone and synchronize this repository using SSH:
+
+```sh
+git clone git@github.com:Khrol/films.git
+cd films
+git fetch origin
+git push origin main
+```
+
+Keep the project overview and operating instructions in this README, and record plugin releases in `plugin/reel-together/readme.txt`. Commit documentation updates with the changes they describe. Local credentials, databases, generated ZIPs, and browser screenshots are excluded through `.gitignore`.
+
 ```text
 plugin/reel-together/   Uploadable WordPress plugin
-scripts/               Local server, test runner, ZIP packaging
-tests/                 WordPress integration tests
+scripts/               Local server, tests, packaging, SSH deployment, hosted checks
+tests/                 WordPress integration tests, browser flows, catalog/Stripe fixtures
 .local/                Ignored local database, credentials, and deployment key
 dist/                  Generated plugin ZIP
 test-results/          Generated browser screenshots

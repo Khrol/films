@@ -15,8 +15,14 @@ Use WordPress Subscriber accounts for ordinary members.
 
 == Features ==
 Personal and household diary entries, viewing dates, repeat viewings, watchlists,
-ratings, notes, household invitations, mobile interface, and optional Kinopoisk
-and TMDB search. The interface remains English; movie titles can be Russian.
+ratings, notes, household invitations, and an interface for desktop and mobile.
+Reusable viewing companions can be linked to family accounts. Personal viewings
+require explicit sharing consent before they appear in another person's diary.
+Invitation requests are collected for the owner to handle manually.
+Kinopoisk and IMDb film IDs support exact links and catalog lookups, with optional
+Kinopoisk and TMDB search. The interface is English; movie titles can be Russian.
+Optional Stripe membership costs EUR 1 per person per month, with complimentary
+access selected individually by the administrator.
 
 == External services ==
 Stripe payments are optional and disabled until the administrator connects an
