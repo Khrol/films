@@ -5,6 +5,7 @@ final class RT_API {
     public static function register() {
         $routes = array(
             '/bootstrap' => array( 'GET', 'bootstrap' ),
+            '/membership' => array( 'GET', 'membership' ),
             '/entries' => array( array( 'GET', 'entries' ), array( 'POST', 'save_entry' ) ),
             '/entries/(?P<id>\d+)' => array( array( 'PUT', 'save_entry' ), array( 'DELETE', 'delete_entry' ) ),
             '/household' => array( 'POST', 'create_household' ),
@@ -25,7 +26,7 @@ final class RT_API {
             foreach ( $handlers as $handler ) {
                 $endpoints[] = array(
                     'methods' => $handler[0], 'callback' => array( self::class, $handler[1] ),
-                    'permission_callback' => array( self::class, 'authenticated' ),
+                    'permission_callback' => array( self::class, '/membership' === $path ? 'signed_in' : 'authenticated' ),
                 );
             }
             register_rest_route( 'reel-together/v1', $path, $endpoints );
@@ -38,9 +39,18 @@ final class RT_API {
         }, 10, 3 );
     }
 
-    public static function authenticated() {
+    public static function signed_in() {
         return is_user_logged_in() && current_user_can( 'read' )
             ? true : self::error( 'Please sign in to use your diary.', 401 );
+    }
+
+    public static function authenticated() {
+        $signed_in = self::signed_in();
+        return is_wp_error( $signed_in ) ? $signed_in : RT_Membership::authorize();
+    }
+
+    public static function membership() {
+        return RT_Membership::status();
     }
 
     private static function error( $message, $status = 400 ) {

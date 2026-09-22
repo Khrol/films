@@ -37,8 +37,10 @@ final class RT_App {
             }
             wp_enqueue_style( 'reel-together', RT_URL . 'assets/app.css', array(), RT_VERSION );
             if ( is_user_logged_in() ) {
-                wp_enqueue_script( 'reel-together', RT_URL . 'assets/app.js', array(), RT_VERSION, true );
-                wp_add_inline_script( 'reel-together', 'window.ReelTogether=' . wp_json_encode( array(
+                $membership = ! RT_Membership::status()['access'] || RT_Membership::is_account_page();
+                $handle = $membership ? 'reel-billing' : 'reel-together';
+                wp_enqueue_script( $handle, RT_URL . ( $membership ? 'assets/billing.js' : 'assets/app.js' ), array(), RT_VERSION, true );
+                wp_add_inline_script( $handle, 'window.ReelTogether=' . wp_json_encode( array(
                     'api' => esc_url_raw( rest_url( 'reel-together/v1/' ) ), 'nonce' => wp_create_nonce( 'wp_rest' ),
                 ), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT ) . ';', 'before' );
             }
@@ -88,6 +90,9 @@ final class RT_App {
     }
 
     public static function render() {
+        if ( is_user_logged_in() && ( RT_Membership::is_account_page() || ! RT_Membership::status()['access'] ) ) {
+            return RT_Membership::render();
+        }
         ob_start();
         if ( is_user_logged_in() ) {
             ?>
@@ -103,6 +108,9 @@ final class RT_App {
                     </nav>
                     <div class="sidebar-note"><span aria-hidden="true">✳</span><p>Good films.<br>Better company.</p><small>A place for the movies<br>and the moments between.</small></div>
                     <div class="account"><span class="avatar" id="avatar" aria-hidden="true">R</span><div><strong id="account-name">Your account</strong><a href="<?php echo esc_url( wp_logout_url( self::url() ) ); ?>">Sign out</a></div></div>
+                    <?php if ( RT_Membership::enabled() || RT_Stripe::row( get_current_user_id(), 'live' ) ) : ?>
+                    <a class="manage-invitations" href="<?php echo esc_url( RT_Membership::url() ); ?>">Membership</a>
+                    <?php endif; ?>
                     <?php if ( current_user_can( 'manage_options' ) ) : ?>
                     <a class="manage-invitations" href="<?php echo esc_url( RT_Invitations::url() ); ?>">Invitation requests (<?php echo (int) RT_Invitations::pending_count(); ?>)</a>
                     <?php endif; ?>
@@ -124,6 +132,7 @@ final class RT_App {
                 <a class="brand" href="<?php echo esc_url( self::url() ); ?>"><span class="brand-mark" aria-hidden="true">r.</span><span>reel together.</span></a>
                 <div class="welcome-grid"><div><p class="eyebrow">MAKE A NIGHT OF IT</p><h1>Every film.<br>Every <em>memory.</em></h1><p class="intro">The ones you loved. The ones you watched together. A little home for your life in movies.</p><div class="welcome-ticket" aria-hidden="true"><span>ADMIT EVERYONE</span><strong>Good films.<br>Better company.</strong><span>YOUR NEXT MOVIE NIGHT STARTS HERE</span></div></div>
                 <section class="login-card"><p class="eyebrow">WELCOME TO YOUR LITTLE CINEMA</p><h2>Come on in.</h2><p>Sign in to your private diary and household watchlist.</p>
+                    <?php if ( RT_Membership::enabled() ) : ?><p>Membership is €1 per person, per month. The site owner can grant complimentary access.</p><?php endif; ?>
                     <?php wp_login_form( array( 'redirect' => self::url(), 'label_log_in' => 'Open my diary', 'remember' => true ) ); ?>
                     <p><a href="<?php echo esc_url( wp_login_url( self::url() ) ); ?>">More sign-in options</a></p>
                     <p><a href="<?php echo esc_url( wp_lostpassword_url( self::url() ) ); ?>">Forgot your password?</a></p>
@@ -148,6 +157,7 @@ final class RT_App {
             <?php settings_errors(); ?>
             <p><a class="button button-primary" href="<?php echo esc_url( self::url() ); ?>">Open your movie diary</a></p>
             <p><a class="button" href="<?php echo esc_url( RT_Invitations::url() ); ?>">Review invitation requests (<?php echo (int) RT_Invitations::pending_count(); ?>)</a></p>
+            <?php RT_Stripe_Settings::render(); ?>
             <h2>Movie catalogs</h2><p>Manual entry is always available. Connect either catalog to search for movies. Keys stay on your server and are never sent to your visitors.</p>
             <form method="post" action="options.php">
                 <?php settings_fields( 'rt_settings' ); ?>

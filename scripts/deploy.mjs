@@ -37,6 +37,28 @@ const preflight = JSON.parse(await remotePHP(`${guard}
 `));
 console.log('Target:', JSON.stringify(preflight));
 
+if (process.argv.includes('--inspect-billing')) {
+  const result = await remotePHP(`${guard}
+    require_once ABSPATH . 'wp-admin/includes/plugin.php';
+    $plugins = array();
+    foreach (get_plugins() as $file=>$plugin) {
+      if (preg_match('/woocommerce|woopayments|subscriptions|stripe/i', $file . ' ' . $plugin['Name'])) {
+        $plugins[] = array('file'=>$file, 'name'=>$plugin['Name'], 'version'=>$plugin['Version'], 'active'=>is_plugin_active($file));
+      }
+    }
+    $gateways = array();
+    if (function_exists('WC')) {
+      foreach (WC()->payment_gateways()->payment_gateways() as $id=>$gateway) {
+        $gateways[] = array('id'=>$id, 'enabled'=>$gateway->enabled === 'yes', 'subscriptions'=>$gateway->supports('subscriptions'), 'test_mode'=>$gateway->get_option('testmode') === 'yes');
+      }
+    }
+    echo wp_json_encode(array('plugins'=>$plugins, 'gateways'=>$gateways, 'subscriptions_available'=>function_exists('wcs_get_users_subscriptions'),
+      'currency'=>get_option('woocommerce_currency', ''), 'tax_enabled'=>get_option('woocommerce_calc_taxes', ''),
+      'checkout_page'=>(int)get_option('woocommerce_checkout_page_id'), 'account_page'=>(int)get_option('woocommerce_myaccount_page_id')));
+  `);
+  console.log('Billing setup:', result.trim());
+}
+
 if (process.argv.includes('--make-homepage')) {
   const before = JSON.parse(await remotePHP(`${guard}
     if (!class_exists('RT_App')) { WP_CLI::error('Reel Together is not active.'); }
@@ -98,7 +120,7 @@ if (process.argv.includes('--deploy') || process.argv.includes('--verify') || pr
     if (!class_exists('RT_App')) { WP_CLI::error('Reel Together is not active.'); }
     global $wpdb;
     $tables = array();
-    foreach (array('households','members','movies','entries','invitation_requests','companions','entry_shares') as $name) {
+    foreach (array('households','members','movies','entries','invitation_requests','companions','entry_shares','billing_accounts') as $name) {
       $table = RT_Store::table($name);
       $found = $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like($table)));
       if ($found !== $table) { WP_CLI::error('A required plugin table is missing.'); }
@@ -129,7 +151,7 @@ if (process.argv.includes('--deploy') || process.argv.includes('--verify') || pr
     wp_set_current_user(0);
     $anonymous = rest_do_request(new WP_REST_Request('GET', '/reel-together/v1/bootstrap'));
     if ($anonymous->get_status() !== 401) { WP_CLI::error('Anonymous access was not rejected.'); }
-    echo wp_json_encode(array('version'=>RT_VERSION, 'page'=>RT_App::url(), 'schema'=>get_option('rt_schema_version'), 'tables'=>$tables, 'visibility_queries'=>'passed', 'anonymous_status'=>$anonymous->get_status(), 'kinopoisk_configured'=>(bool)RT_App::token('kinopoisk')));
+    echo wp_json_encode(array('version'=>RT_VERSION, 'page'=>RT_App::url(), 'schema'=>get_option('rt_schema_version'), 'tables'=>$tables, 'visibility_queries'=>'passed', 'anonymous_status'=>$anonymous->get_status(), 'kinopoisk_configured'=>(bool)RT_App::token('kinopoisk'), 'paid_access_enabled'=>RT_Membership::enabled(), 'stripe_test_ready'=>RT_Stripe::ready('test'), 'stripe_live_ready'=>RT_Stripe::ready('live')));
   `);
   console.log('Verified:', result.trim());
 }

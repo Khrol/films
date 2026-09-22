@@ -100,6 +100,23 @@ To associate a label with a real person, have them join **Our household**, then 
 
 Personal entries need explicit sharing. Check **Share all earlier viewings…** when saving a companion to share their tagged history, including personal notes and ratings, with the selected account. This grants access only to that person, not the entire household, and does not automatically share future personal entries. For individual viewings, use **Who can see this? → Linked companions — selected accounts** and select the recipients. Changing to **Just for me** revokes that entry’s grants. Removing or changing an account link, leaving the household, or removing a member revokes the affected personal grants. Relinking or rejoining does not restore them without a new explicit sharing choice.
 
+### €1/month personal membership
+
+Billing uses **Stripe Checkout and Stripe Billing directly**; WooCommerce Subscriptions is not required. Each subscription covers one signed-in WordPress account. Billing is disabled by default and existing diary data is retained when access ends.
+
+1. Create a Stripe account and complete its business and payout setup. Never put API keys in chat, Git, or screenshots.
+2. Open **Settings → Reel Together → Membership**. Choose **Test**, enter a Stripe sandbox test secret key, and select **Connect and prepare Stripe**. The plugin creates an exact €1/month recurring price, customer portal, and signed webhook endpoint. Connecting does not charge anyone.
+3. Select **Run test checkout**. Complete a Stripe test payment using its test card `4242 4242 4242 4242`, a future expiry, and any three-digit CVC. Both verified payment and webhook delivery must succeed before live access requirements can be enabled. Test purchases never grant live entitlements.
+4. Connect your **Live** secret key. Separate Stripe sandboxes are supported; their account ID need not match your live account. Stripe must report that live charges are enabled. Tax calculation through Stripe Tax is optional and requires the merchant’s tax settings and registrations in Stripe; the recurring price uses inclusive tax behavior so the listed plan remains €1.
+5. Under **Users → Edit → Reel Together membership**, select **Complimentary access** for each person who should be free. This is an individual choice; no family accounts are automatically exempted. Administrators always retain access. Complimentary access does not cancel an already-running Stripe subscription; use its billing portal or Stripe Dashboard to manage that subscription separately.
+6. Return to Membership settings and enable **Open €1/month subscriptions and require paid or complimentary access**. Everyone else sees the subscription screen until they complete checkout. New people still request an invitation/account; the existing request queue does not create accounts or send emails.
+
+Subscribers use **Membership → Manage billing** for invoices, payment-method updates, and cancellation. Cancellation through the portal takes effect at the end of the paid period. Failed renewals pause diary access, while the portal remains available; successful payment restores access. Turning off paid access does not cancel Stripe subscriptions. Individual free-access changes likewise do not alter household membership or sharing permissions.
+
+Stripe keys and webhook signing secrets stay in non-autoloaded WordPress options and are never returned by the app or refilled into settings HTML. Checkout fixes the price, quantity, customer, and return URL on the server; repeated requests reuse one open session. Webhooks verify the raw-body HMAC and timestamp, distinguish test/live mode, and refetch current Stripe state instead of trusting the event’s old status. Active access requires a matching €1 monthly price, account identity, paid invoice, and an unexpired paid period. Cached status is refreshed after five minutes or sooner on webhook delivery/expiry; a failed refresh does not grant unverified access.
+
+Local tests mock Stripe HTTP responses and hosted payment pages. A real Stripe test checkout and webhook are still required on the configured account before opening subscriptions. Stripe processing/Billing fees apply; they are separate from the price paid by the member. See [Stripe Checkout](https://docs.stripe.com/payments/checkout/build-subscriptions), [customer portal](https://docs.stripe.com/customer-management), [webhook signatures](https://docs.stripe.com/webhooks/signature), and [Stripe Billing pricing](https://stripe.com/billing/pricing).
+
 ### Invitation requests
 
 When public registration is disabled, the login page offers **Request an invitation**. Visitors submit a name and email address. Requests are visible to administrators at **Users → Invitation requests**, with links from the diary sidebar and **Settings → Reel Together**.
@@ -158,7 +175,7 @@ The token stays on the server. Alternatively, define `REEL_TOGETHER_TMDB_TOKEN` 
 - Movie records and viewing entries are separate, so rewatches reuse metadata and retain independent viewing details.
 - REST requests require authentication and a WordPress nonce. Every query enforces visibility; client-supplied owner/household IDs do not grant access. App HTML and API responses send no-cache headers.
 
-Tables use the site's WordPress prefix: `rt_households`, `rt_members`, `rt_movies`, `rt_entries`, `rt_companions`, `rt_entry_shares`, and `rt_invitation_requests`. Deactivating or deleting the plugin retains data. Invitation requests include visitors’ names and emails; only administrators can review or remove them. Back up the full database: WordPress's built-in content export does not include these tables. Self-service data export, account erasure workflows, household ownership transfer, imports, and recommendations are not included in this first version.
+Tables use the site's WordPress prefix: `rt_households`, `rt_members`, `rt_movies`, `rt_entries`, `rt_companions`, `rt_entry_shares`, `rt_billing_accounts`, and `rt_invitation_requests`. Deactivating or deleting the plugin retains data. Billing records store Stripe customer/session identifiers and membership status, never card details. Invitation requests include visitors’ names and emails; only administrators can review or remove them. Back up the full database: WordPress's built-in content export does not include these tables. Self-service data export, account erasure workflows, household ownership transfer, imports, and recommendations are not included in this first version.
 
 ## Project layout
 

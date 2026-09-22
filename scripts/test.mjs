@@ -6,15 +6,18 @@ import { chromium, expect } from '@playwright/test';
 import { startWordPress, projectRoot } from './wordpress.mjs';
 import { checkSearchLayout } from './check-search-layout.mjs';
 import { checkSharing } from '../tests/sharing-browser.mjs';
+import { checkBilling } from '../tests/billing-browser.mjs';
 
 const instance = await startWordPress({ port: 9401 });
 let browser;
 try {
   await instance.playground.mkdirTree('/wordpress/wp-content/mu-plugins');
   await instance.playground.writeFile('/wordpress/wp-content/mu-plugins/reel-test-kinopoisk.php', await readFile(path.join(projectRoot, 'tests/mock-kinopoisk.php'), 'utf8'));
+  await instance.playground.writeFile('/wordpress/wp-content/mu-plugins/reel-test-stripe.php', await readFile(path.join(projectRoot, 'tests/mock-stripe.php'), 'utf8'));
   await instance.playground.writeFile('/wordpress/reel-invitation-checks.php', await readFile(path.join(projectRoot, 'tests/invitations.php'), 'utf8'));
   await instance.playground.writeFile('/wordpress/reel-companion-checks.php', await readFile(path.join(projectRoot, 'tests/companions.php'), 'utf8'));
   await instance.playground.writeFile('/wordpress/reel-sharing-checks.php', await readFile(path.join(projectRoot, 'tests/sharing.php'), 'utf8'));
+  await instance.playground.writeFile('/wordpress/reel-billing-checks.php', await readFile(path.join(projectRoot, 'tests/billing.php'), 'utf8'));
   const result = await instance.playground.run({ code: await readFile(path.join(projectRoot, 'tests/integration.php'), 'utf8') });
   if (result.errors) console.error(result.errors);
   const report = JSON.parse(result.text);
@@ -203,7 +206,7 @@ try {
   await page.getByRole('button', { name: 'Save film ↗' }).click();
   await expect(manualLinks.getByRole('link', { name: 'IMDb ↗', exact: true })).toBeVisible();
   const favicon = page.locator('link[rel="icon"][type="image/svg+xml"]');
-  await expect(favicon).toHaveAttribute('href', /assets\/favicon\.svg\?ver=0\.5\.0/);
+  await expect(favicon).toHaveAttribute('href', /assets\/favicon\.svg\?ver=0\.6\.0/);
   assert.equal((await page.request.get(await favicon.getAttribute('href'))).ok(), true);
   console.log('PASS Browser: both ID links persist and edit without an API key; branded favicon loads');
 
@@ -249,6 +252,7 @@ try {
   assert.deepEqual(errors, [], 'No browser JavaScript errors');
   console.log('PASS Browser: logged-out sessions cannot see diary content; no JavaScript errors');
   await checkSharing(browser, url, out);
+  await checkBilling(browser, instance, out);
 
   const storage = await mkdtemp(path.join(tmpdir(), 'reel-persistence-'));
   let persistent;

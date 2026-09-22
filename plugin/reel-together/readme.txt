@@ -2,7 +2,7 @@
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 0.5.0
+Stable tag: 0.6.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -19,6 +19,19 @@ ratings, notes, household invitations, mobile interface, and optional Kinopoisk
 and TMDB search. The interface remains English; movie titles can be Russian.
 
 == External services ==
+Stripe payments are optional and disabled until the administrator connects an
+account, completes a test checkout and webhook, and opens subscriptions.
+Membership costs EUR 1 per person per month, with manually assigned complimentary
+access. Stripe processes recurring charges, cancellation, and payment details.
+Requests to api.stripe.com include the member’s email, WordPress account ID,
+site identifier, and Stripe billing identifiers. Checkout and the customer portal
+open checkout.stripe.com and billing.stripe.com. Card details are entered at
+Stripe and are never stored by this plugin. Stripe keys stay on the server.
+Service: https://stripe.com/billing
+Terms: https://stripe.com/legal/ssa
+Privacy: https://stripe.com/privacy
+
+
 Kinopoisk search is optional and uses the independent third-party provider
 Kinopoisk API Unofficial. Search keywords are sent to kinopoiskapiunofficial.tech
 with a server-side API key. Results include Russian titles, poster URLs, and
@@ -41,8 +54,16 @@ The bundled TMDB logo is used for attribution and remains TMDB's property.
 == Data retention ==
 Deactivation and plugin deletion preserve custom database tables. Back up the
 entire database to retain households and diary records.
+Deactivating this plugin does not stop Stripe charges. Manage or cancel active
+subscriptions in Stripe before retiring the service.
 
 == Changelog ==
+= 0.6.0 =
+Direct Stripe EUR 1/month personal membership, administrator-selected free access,
+secure checkout and customer portal, signed payment webhooks, separate test/live
+setup, paid-period enforcement, and preserved diary data after cancellation.
+
+
 = 0.5.0 =
 Optional companion links to household accounts, My viewings participant filter,
 explicit sharing of earlier or individual personal viewings, and access revocation

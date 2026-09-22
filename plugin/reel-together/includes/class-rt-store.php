@@ -12,6 +12,19 @@ final class RT_Store {
         require_once ABSPATH . 'wp-admin/includes/upgrade.php';
         $charset = $wpdb->get_charset_collate();
         $tables = array(
+            'billing_accounts' => "user_id bigint(20) unsigned NOT NULL,
+                mode varchar(4) NOT NULL,
+                account_id varchar(100) NOT NULL,
+                customer_id varchar(100) DEFAULT NULL,
+                checkout_id varchar(100) NOT NULL DEFAULT '',
+                checkout_key varchar(64) NOT NULL DEFAULT '',
+                state varchar(24) NOT NULL DEFAULT 'inactive',
+                paid_until bigint(20) unsigned NOT NULL DEFAULT 0,
+                checked_at bigint(20) unsigned NOT NULL DEFAULT 0,
+                has_subscription tinyint(1) unsigned NOT NULL DEFAULT 0,
+                lock_until bigint(20) unsigned NOT NULL DEFAULT 0,
+                PRIMARY KEY  (user_id,mode),
+                UNIQUE KEY customer (customer_id,mode)",
             'companions' => "id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
                 user_id bigint(20) unsigned NOT NULL,
                 linked_user_id bigint(20) unsigned NOT NULL DEFAULT 0,

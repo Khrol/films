@@ -208,6 +208,7 @@ try {
     require '/wordpress/reel-invitation-checks.php';
     require '/wordpress/reel-companion-checks.php';
     require '/wordpress/reel-sharing-checks.php';
+    require '/wordpress/reel-billing-checks.php';
     $browser = new_user( 'browser' );
     new_user( 'linked_browser' );
     new_user( 'sharing_browser' );
