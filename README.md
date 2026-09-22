@@ -94,6 +94,19 @@ node scripts/deploy.mjs --configure-kinopoisk  # Read key from the ignored local
 
 The normal deployment command adds or updates the app without changing the homepage or registration settings. The explicit `--make-homepage` command sets the diary as the front page and saves the previous homepage options in `.local/`. WordPress handles the page’s canonical URL; the plugin does not install a custom redirect. It is configured specifically for the deployment target above. A known SSH host key must already exist in `.local/wpcom_known_hosts`.
 
+### Homepage on the Personal-plan site
+
+The additional installation at **https://filmrecording.wpcomstaging.com/** uses a Personal plan without SSH. Manage this site through WordPress Admin; the SSH deployment script above targets `films.khroliz.com`.
+
+To show its existing `/films/` page directly at the root address:
+
+1. Open [Settings → Reading](https://filmrecording.wpcomstaging.com/wp-admin/options-reading.php).
+2. Under **Your homepage displays**, choose **A static page**.
+3. Set **Homepage** to **Films**, the published page containing `[reel_together]`.
+4. Click **Save Changes**, then visit **https://filmrecording.wpcomstaging.com/** to confirm the diary opens there.
+
+This uses WordPress's homepage setting and does not require SSH or a custom redirect. See [WordPress.com's static homepage guide](https://wordpress.com/support/pages/front-page/#set-a-static-homepage).
+
 ## 4. Accounts and movie search
 
 ### Accounts
