@@ -102,7 +102,7 @@ To show its existing `/films/` page directly at the root address:
 
 1. Open [Settings → Reading](https://filmrecording.wpcomstaging.com/wp-admin/options-reading.php).
 2. Under **Your homepage displays**, choose **A static page**.
-3. Set **Homepage** to **Films**, the published page containing `[reel_together]`.
+3. Set **Homepage** to the published page currently at `/films/`, named **Reel Together** by default and containing `[reel_together]`.
 4. Click **Save Changes**, then visit **https://filmrecording.wpcomstaging.com/** to confirm the diary opens there.
 
 This uses WordPress's homepage setting and does not require SSH or a custom redirect. See [WordPress.com's static homepage guide](https://wordpress.com/support/pages/front-page/#set-a-static-homepage).
